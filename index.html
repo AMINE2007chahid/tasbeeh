@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تسبيح إلكتروني - أمين شهيد</title>
+    <!-- مكتبة التصميم Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- الخطوط -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', 'Poppins', sans-serif;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        /* النص العائم مكان الضغط */
+        .floating-dhikr {
+            position: absolute;
+            pointer-events: none;
+            color: #000000;
+            font-weight: 900;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            animation: floatUp 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            white-space: nowrap;
+            z-index: 999;
+        }
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+            15% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); }
+            100% { opacity: 0; transform: translate(-50%, -120px) scale(0.8); }
+        }
+    </style>
+</head>
+<body class="bg-white flex flex-col justify-between items-center text-black">
+
+    <!-- شاشة اللمس والنقر الكاملة -->
+    <div id="full-click-screen" class="absolute inset-0 z-20 flex flex-col justify-between p-6 items-center">
+        
+        <!-- الجزء العلوي: القوائم والنصوص -->
+        <header class="text-center w-full pt-4 pointer-events-none flex flex-col items-center">
+            
+            <!-- أزرار الاختيار -->
+            <div class="pointer-events-auto mb-4 flex gap-2 flex-wrap justify-center">
+                
+                <!-- اختيار اللغة -->
+                <select id="language-select" class="bg-slate-100 text-black border border-slate-300 rounded-full px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer">
+                    <option value="ar">العربية 🇸🇦</option>
+                    <option value="en">English 🇬🇧</option>
+                    <option value="id">Bahasa Indonesia 🇮🇩</option>
+                </select>
+
+                <!-- اختيار الذِكر -->
+                <select id="dhikr-select" class="bg-slate-100 text-black border border-slate-300 rounded-full px-3 py-1.5 text-xs font-bold focus:outline-none cursor-pointer">
+                    <!-- يتم تعبئته تلقائياً بلغة المستخدم -->
+                </select>
+                
+            </div>
+
+            <h1 id="txt-title" class="text-lg md:text-2xl font-black text-black">تسبيح إلكتروني أذكار واستغفار</h1>
+            <p id="txt-author" class="text-xs md:text-sm text-slate-600 mt-1 font-bold">هذا التطبيق من صنع أمين شهيد</p>
+        </header>
+
+        <!-- الجزء الأوسط: العداد وعداد الدورات المكتملة -->
+        <main class="w-full flex flex-col items-center justify-center pointer-events-none">
+            
+            <div class="text-center">
+                <span id="counter" class="text-8xl md:text-9xl font-black text-black transition-transform duration-75 block">0</span>
+                
+                <div class="flex flex-col gap-2 items-center mt-3">
+                    <p id="txt-target" class="text-xs text-black font-bold bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200 inline-block">الهدف: 100</p>
+                    
+                    <!-- عداد الدورات -->
+                    <p id="txt-rounds" class="text-xs font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-200 inline-block">الدورات المكتملة: 0</p>
+                </div>
+            </div>
+
+            <p id="txt-instruction" class="mt-10 text-xs text-slate-500 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200">انقر أو المس في أي مكان على الشاشة كاملة</p>
+        </main>
+
+        <!-- الجزء السفلي -->
+        <footer class="text-center pb-4 pointer-events-none">
+            <p id="txt-footer" class="text-black font-bold text-base tracking-wide">أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ</p>
+        </footer>
+
+    </div>
+
+    <script>
+        const clickScreen = document.getElementById('full-click-screen');
+        const counterDisplay = document.getElementById('counter');
+        const languageSelect = document.getElementById('language-select');
+        const dhikrSelect = document.getElementById('dhikr-select');
+        const htmlRoot = document.getElementById('html-root');
+
+        // قائمة الأذكار مترجمة لكل لغة
+        const dhikrOptions = {
+            ar: [
+                { id: "istighfar", label: "استغفار (أستغفر الله)", main: "أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ", float: "أستغفر الله العظيم" },
+                { id: "tasbeeh", label: "تسبيح (سبحان الله)", main: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ", float: "سبحان الله" },
+                { id: "tahmdeed", label: "حمد (الحمد لله)", main: "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", float: "الحمد لله" },
+                { id: "takbeer", label: "تكبير (الله أكبر)", main: "اللَّهُ أَكْبَرُ كَبِيرًا", float: "الله أكبر" }
+            ],
+            en: [
+                { id: "istighfar", label: "Forgiveness (Astaghfirullah)", main: "Astaghfirullah Al-Azeem", float: "Astaghfirullah" },
+                { id: "tasbeeh", label: "Praise (SubhanAllah)", main: "SubhanAllah wa Bihamdihi", float: "SubhanAllah" },
+                { id: "tahmdeed", label: "Thanks (Alhamdulillah)", main: "Alhamdulillah Rabbil 'Alameen", float: "Alhamdulillah" },
+                { id: "takbeer", label: "Takbeer (Allahu Akbar)", main: "Allahu Akbar Kabeera", float: "Allahu Akbar" }
+            ],
+            id: [
+                { id: "istighfar", label: "Istighfar (Astaghfirullah)", main: "Astaghfirullahal 'Adzim", float: "Astaghfirullah" },
+                { id: "tasbeeh", label: "Tasbih (Subhanallah)", main: "Subhanallah wa Bihamdihi", float: "Subhanallah" },
+                { id: "tahmdeed", label: "Tahmid (Alhamdulillah)", main: "Alhamdulillahi Rabbil 'Alamin", float: "Alhamdulillah" },
+                { id: "takbeer", label: "Takbir (Allahu Akbar)", main: "Allahu Akbar Kabeera", float: "Allahu Akbar" }
+            ]
+        };
+
+        const translations = {
+            ar: {
+                title: "تسبيح إلكتروني أذكار واستغفار",
+                author: "هذا التطبيق من صنع أمين شهيد",
+                target: "الهدف: 100",
+                rounds: "الدورات المكتملة: ",
+                instruction: "انقر أو المس في أي مكان على الشاشة كاملة",
+                dir: "rtl"
+            },
+            en: {
+                title: "Electronic Tasbeeh & Dhikr App",
+                author: "This app was made by Amin Shaheed",
+                target: "Target: 100",
+                rounds: "Completed Rounds: ",
+                instruction: "Tap or click anywhere on the screen",
+                dir: "ltr"
+            },
+            id: {
+                title: "Tasbih Elektronik & Dzikir",
+                author: "Aplikasi ini dibuat oleh Amin Shaheed",
+                target: "Target: 100",
+                rounds: "Putaran Selesai: ",
+                instruction: "Ketuk di mana saja pada layar",
+                dir: "ltr"
+            }
+        };
+
+        let currentLang = "ar";
+        let currentDhikrId = "istighfar";
+        let count = 0;
+        let completedRounds = 0;
+
+        // ==========================================
+        // محرك الصوت المطور والاحترافي (تجنباً للتأخير والحظر)
+        // ==========================================
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // صوت النقر الواضح والسريع
+        function playClickSound() {
+            initAudioContext();
+            if (!audioCtx) return;
+
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.03);
+
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + 0.03);
+            } catch (e) {}
+        }
+
+        // صوت الانتصار عند الـ 100
+        function playVictorySound() {
+            initAudioContext();
+            if (!audioCtx) return;
+
+            try {
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // نوتات موفقة
+                notes.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    const startTime = audioCtx.currentTime + (index * 0.08);
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    gain.gain.setValueAtTime(0.3, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.25);
+                });
+            } catch (e) {}
+        }
+
+        // ==========================================
+        // وظائف الواجهة والأحداث
+        // ==========================================
+
+        function updateDhikrDropdown() {
+            const list = dhikrOptions[currentLang];
+            dhikrSelect.innerHTML = '';
+            
+            list.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.innerText = item.label;
+                if (item.id === currentDhikrId) opt.selected = true;
+                dhikrSelect.appendChild(opt);
+            });
+        }
+
+        function updateUI() {
+            const t = translations[currentLang];
+            const currentDhikrObj = dhikrOptions[currentLang].find(d => d.id === currentDhikrId) || dhikrOptions[currentLang][0];
+
+            htmlRoot.setAttribute('dir', t.dir);
+            htmlRoot.setAttribute('lang', currentLang);
+
+            document.getElementById('txt-title').innerText = t.title;
+            document.getElementById('txt-author').innerText = t.author;
+            document.getElementById('txt-target').innerText = t.target;
+            document.getElementById('txt-rounds').innerText = t.rounds + completedRounds;
+            document.getElementById('txt-instruction').innerText = t.instruction;
+            document.getElementById('txt-footer').innerText = currentDhikrObj.main;
+        }
+
+        languageSelect.addEventListener('change', (e) => {
+            currentLang = e.target.value;
+            updateDhikrDropdown();
+            updateUI();
+        });
+
+        dhikrSelect.addEventListener('change', (e) => {
+            currentDhikrId = e.target.value;
+            count = 0;
+            completedRounds = 0;
+            counterDisplay.innerText = 0;
+            updateUI();
+        });
+
+        function createFloatingText(x, y) {
+            const currentDhikrObj = dhikrOptions[currentLang].find(d => d.id === currentDhikrId) || dhikrOptions[currentLang][0];
+            const txt = document.createElement('div');
+            txt.className = 'floating-dhikr';
+            txt.innerText = currentDhikrObj.float;
+            txt.style.left = `${x}px`;
+            txt.style.top = `${y}px`;
+            document.body.appendChild(txt);
+            setTimeout(() => txt.remove(), 800);
+        }
+
+        function triggerScreenTap(e) {
+            if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+
+            let posX = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth / 2;
+            let posY = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight / 2;
+
+            count++;
+
+            if (count >= 100) {
+                counterDisplay.innerText = 100;
+                completedRounds++;
+                playVictorySound();
+                document.getElementById('txt-rounds').innerText = translations[currentLang].rounds + completedRounds;
+                
+                count = 0;
+                setTimeout(() => {
+                    counterDisplay.innerText = count;
+                }, 300);
+            } else {
+                counterDisplay.innerText = count;
+                playClickSound();
+            }
+
+            createFloatingText(posX, posY);
+
+            counterDisplay.classList.add('scale-110');
+            setTimeout(() => counterDisplay.classList.remove('scale-110'), 80);
+        }
+
+        // أحداث الضغط واللمس
+        clickScreen.addEventListener('mousedown', (e) => {
+            triggerScreenTap(e);
+        });
+
+        clickScreen.addEventListener('touchstart', (e) => {
+            if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+            e.preventDefault();
+            triggerScreenTap(e);
+        });
+
+        // تشغيل البداية
+        updateDhikrDropdown();
+        updateUI();
+    </script>
+</body>
+</html>
